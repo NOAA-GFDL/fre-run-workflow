@@ -1,0 +1,42 @@
+name: test_cloud_runner
+on:
+  workflow_dispatch:
+    inputs:
+      fre-workflows-repo:
+        description: "IF ON FORK: Input fre-workflows fork name (example: singhd789/fre-workflows). Leave empty if not using a fork."
+        required: false
+        type: string
+      fre-workflows-branch:
+        description: 'IF ON FORK: Input fre-workflows branch to check out.'
+        required: false
+        default: 'main'
+        type: string
+      fre-cli-repo:
+        description: 'Input fre-cli repo (default: NOAA-GFDL/fre-cli)'
+        required: true
+        type: string
+        default: 'NOAA-GFDL/fre-cli'
+      fre-cli-branch:
+        description: 'Input fre-cli branch to check out.'
+        required: true
+        default: 'main'
+        type: string
+  push:
+    branches:
+      - main  # triggers pipeline on push to main
+
+# cancel running jobs if theres a newer push
+#concurrency:
+#  group: ${{ github.workflow }}-${{ github.ref }}
+#  cancel-in-progress: true
+
+jobs:
+  test-cloud:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout fre-workflows fork if specified
+        if: ${{ github.event.inputs.fre-workflows-repo != ''}}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.inputs.fre-workflows-repo }}
+          ref: ${{ github.event.inputs.fre-workflows-branch }}
