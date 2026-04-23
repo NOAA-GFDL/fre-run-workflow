@@ -1,0 +1,23 @@
+#!jinja2
+
+{# fre version should be programatically set, not hard-coded. #}
+{% set FRE_VERSION = "2026.01.alpha2" %}
+{% set SITE = SITE %}
+
+{# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
+{# A use case for overriding this value is exhibited in the fre-workflows pipeline test_cloud_runner.yaml #}
+{# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort is stalled #}
+{# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' #}
+{% if STALL_TIMEOUT is not defined %}
+    {% set STALL_TIMEOUT = "P1W" %}
+{% endif %}
+
+{# The combined yaml is the definitive configuration source #}
+{% set YAML = EXPERIMENT + '.yaml' %}
+
+[meta]
+    title = "Production run prototype #1"
+    description = """
+    First draft for the production workflow definition.
+    """
+    URL = https://github.com/singhd789/fre-run-workflow/blob/main/README.md
