@@ -21,3 +21,20 @@
     First draft for the production workflow definition.
     """
     URL = https://github.com/singhd789/fre-run-workflow/blob/main/README.md
+
+[scheduler]
+    UTC = True
+    allow implicit tasks =  False
+    install =
+    [[events]]
+        stall timeout = {{ STALL_TIMEOUT }}
+        {% if DO_WORKFLOW_EMAIL is defined and DO_WORKFLOW_EMAIL %}
+            mail events = startup, shutdown, abort, stall, inactivity timeout, restart timeout
+        {% endif %}
+
+    [[mail]]
+        footer = """
+        Workflow: %(workflow)s
+        Host: %(host)s
+        Event notification: %(message)s
+        """
