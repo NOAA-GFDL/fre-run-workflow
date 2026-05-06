@@ -3,6 +3,7 @@
 {# fre version should be programatically set, not hard-coded. #}
 {% set FRE_VERSION = "2026.01.alpha2" %}
 {% set SITE = SITE %}
+{% include 'platforms/platform.cylc' %}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
 {# A use case for overriding this value is exhibited in the fre-workflows pipeline test_cloud_runner.yaml #}
@@ -37,4 +38,70 @@
         Workflow: %(workflow)s
         Host: %(host)s
         Event notification: %(message)s
+
+[task parameters]
+
+[scheduling]
+    initial cycle point = {{ EXP_START }}
+    final cycle point = {{ EXP_STOP }}
+    [[queues]]
+        [[[default]]]
+            limit = 50
+        [[[clean]]]
+            limit = 1
+            members = CLEAN
+    [[graph]]
+        ## REPEAT EVERY HISTORY_SEGMENT
+        {{ HISTORY_SEGMENT }} = """
+        ????? 
         """
+        ####
+        #setup-dirs (and error checking for listing/access to relevant configs?) =>
+        #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable) =>
+        #expand-namelist? =>
+        #gen-srun (mpi call; execute it and analyze results)=>
+        #configure-ascii =>
+        #configure-restart, namelists, tables,...?? (save a whole bunch of files by cp?, RESTART to INPUT)=>
+        #output-stager (submit-ascii-and-restart) =>
+        #rename-history-files =>
+        #ppStarter =>
+        #write-reload-files (reload and resubmit if needed?) =>
+        #clean-tasks
+        ####
+
+        setup-dirs => LOAD-DATA
+        #### all to inherit LOAD-DATA parent
+        #[[load-datafiles]]
+        #[[load-diagtable]]
+        #[[load-datatable]]
+        #[[load-fieldtable]]
+        #[[load-executable]]
+        ####
+
+        LOAD-DATA:succeed-all => expand-namelists
+        ####
+        #expandVariables $envFile < input.nml.unexpanded > input.nml || exit 1
+        #expandVariables --> script that takes in envFile variable contents; can be a script in bin/?, lib/?, etc/?
+        #< input.nml.unexpanded --> input redirection; feeds content of input.expanded into expandVariables command as stdin
+        #> input.nml --> output redirection; captures stdoutput of command and writes it to input.nml
+        ####
+        
+        expand-namelists => gen-srun => CONFIGURE-FILES
+        ####
+        #[[configure-ascii-argfile]]
+        #[[configure-restart-argfile]]
+        #hmm rename region history files and pp-starter options ??--> [[configure-history-argfiles]] (for pp-starter?)
+        #other stuff THEN [[configure-reload-file]]
+        ####
+
+        CONFIGURE-FILES:succeed-all => output-stager => configure-reload-file => CLEAN
+        ####
+        #[[what to clean, what to clean]]
+        ####
+        
+
+        #####
+        #THINGS TO THINK ABOUT:
+        # - better ensemble support
+        #
+        #####
