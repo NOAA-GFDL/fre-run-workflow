@@ -52,7 +52,7 @@
             limit = 1
             members = CLEAN
     [[graph]]
-        ## REPEAT EVERY HISTORY_SEGMENT (to check)
+        ## REPEAT EVERY HISTORY_SEGMENT **(TO CHECK)**
         #{{ HISTORY_SEGMENT }} = """
         #"""
         ####
@@ -71,6 +71,7 @@
 
         setup-dirs => LOAD-DATA
         #### all to inherit LOAD-DATA parent
+        # would be able to use fms-yaml-tools to load these ** (TO CHECK) **
         #[[load-datafiles]]
         #[[load-diagtable]]
         #[[load-datatable]]
@@ -91,7 +92,7 @@
         ####
         #[[configure-ascii-argfile]]
         #[[configure-restart-argfile]]
-        #hmm rename region history files and pp-starter options ??--> [[configure-history-argfiles]] (for pp-starter?)
+        #hmm rename region history files and pp-starter options ?--> [[configure-history-argfiles]] (for pp-starter?)
         #other stuff THEN [[configure-reload-file]]
         ####
 
@@ -104,5 +105,5 @@
         #####
         #THINGS TO THINK ABOUT:
         # - better ensemble support
-        #
+        # - easibility to create YAML configs
         #####
