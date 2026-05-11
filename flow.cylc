@@ -1,14 +1,15 @@
 #!jinja2
 
 {# fre version should be programatically set, not hard-coded. #}
-{% set FRE_VERSION = "2026.01.alpha2" %}
-{% set SITE = SITE %}
-{% include 'platforms/platform.cylc' %}
+{% set FRE_VERSION = fre_properties.FRE_VERSION %}
+{% set SITE = fre_properties.SITE %}
+{% set EXPERIMENT = name %}
+{# include 'platforms/platform.cylc' #}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
 {# A use case for overriding this value is exhibited in the fre-workflows pipeline test_cloud_runner.yaml #}
 {# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort is stalled #}
-{# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' #}
+{# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' in the cylc play command #}
 {% if STALL_TIMEOUT is not defined %}
     {% set STALL_TIMEOUT = "P1W" %}
 {% endif %}
@@ -26,7 +27,7 @@
 [scheduler]
     UTC = True
     allow implicit tasks =  False
-    install =
+    install = etc/*, lib/*
     [[events]]
         stall timeout = {{ STALL_TIMEOUT }}
         {% if DO_WORKFLOW_EMAIL is defined and DO_WORKFLOW_EMAIL %}
@@ -34,7 +35,7 @@
         {% endif %}
 
     [[mail]]
-        footer = """
+        footer =
         Workflow: %(workflow)s
         Host: %(host)s
         Event notification: %(message)s
@@ -51,10 +52,9 @@
             limit = 1
             members = CLEAN
     [[graph]]
-        ## REPEAT EVERY HISTORY_SEGMENT
-        {{ HISTORY_SEGMENT }} = """
-        ????? 
-        """
+        ## REPEAT EVERY HISTORY_SEGMENT (to check)
+        #{{ HISTORY_SEGMENT }} = """
+        #"""
         ####
         #setup-dirs (and error checking for listing/access to relevant configs?) =>
         #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable) =>
@@ -82,10 +82,11 @@
         ####
         #expandVariables $envFile < input.nml.unexpanded > input.nml || exit 1
         #expandVariables --> script that takes in envFile variable contents; can be a script in bin/?, lib/?, etc/?
-        #< input.nml.unexpanded --> input redirection; feeds content of input.expanded into expandVariables command as stdin
+        #< input.nml.unexpanded --> input redirection; feeds content of input.expanded into expandVariables command
+        #                           as stdin
         #> input.nml --> output redirection; captures stdoutput of command and writes it to input.nml
         ####
-        
+
         expand-namelists => gen-srun => CONFIGURE-FILES
         ####
         #[[configure-ascii-argfile]]
@@ -98,7 +99,7 @@
         ####
         #[[what to clean, what to clean]]
         ####
-        
+
 
         #####
         #THINGS TO THINK ABOUT:
