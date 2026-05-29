@@ -108,11 +108,11 @@
 
 ##after main loop
 #says reload and resubmit if needed for production runs only
-#something like... if there's a queue file?, then source the queue file
+#something like... if there's a queue file, then source the queue file
 #then look for continueflag --> if false, just exit
 #if not false --> submit a script ... like this? submit -O "$nextOptions" $scriptName
 #THEN CLEAN
-#also after cleaning...what the heck is ninac?
+#also after cleaning... ninac?
 #################
             """
         {% endif %}
