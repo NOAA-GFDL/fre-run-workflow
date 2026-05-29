@@ -4,6 +4,7 @@
 {% set FRE_VERSION = fre_properties.FRE_VERSION %}
 {% set SITE = fre_properties.SITE %}
 {% set EXPERIMENT = name %}
+{% set PROD_SEGMENT_SIMTIME = run.input.runtime_mode %}
 {# include 'platforms/platform.cylc' #}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
@@ -35,10 +36,10 @@
         {% endif %}
 
     [[mail]]
-        footer =
+        footer = """
         Workflow: %(workflow)s
         Host: %(host)s
-        Event notification: %(message)s
+        """
 
 [task parameters]
 
@@ -52,58 +53,73 @@
             limit = 1
             members = CLEAN
     [[graph]]
-        ## REPEAT EVERY HISTORY_SEGMENT **(TO CHECK)**
-        #{{ HISTORY_SEGMENT }} = """
-        #"""
-        ####
+        #### OVERALL
         #setup-dirs (and error checking for listing/access to relevant configs?) =>
-        #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable) =>
-        #expand-namelist? =>
+        #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable), expand-namelist? =>
         #gen-srun (mpi call; execute it and analyze results)=>
-        #configure-ascii =>
-        #configure-restart, namelists, tables,...?? (save a whole bunch of files by cp?, RESTART to INPUT)=>
+        #configure-ascii, configure-restart, namelists, tables,...?? =>
         #output-stager (submit-ascii-and-restart) =>
-        #rename-history-files =>
-        #ppStarter =>
         #write-reload-files (reload and resubmit if needed?) =>
         #clean-tasks
         ####
 
-        setup-dirs => LOAD-DATA
-        #### all to inherit LOAD-DATA parent
-        # would be able to use fms-yaml-tools to load these ** (TO CHECK) **
-        #[[load-datafiles]]
-        #[[load-diagtable]]
-        #[[load-datatable]]
-        #[[load-fieldtable]]
-        #[[load-executable]]
-        ####
+        {# Setting up the directories can be done once for both the production and regression workflows #}
+        R1 = """
+            SETUP-DIRS:succeed-all => load-datafiles &
+                                    load-diagtable &
+                                    load-datatable &
+                                    load-fieldtable &
+                                    load-executable &
+                                    expand-namelists
+        """
 
-        LOAD-DATA:succeed-all => expand-namelists
-        ####
-        #expandVariables $envFile < input.nml.unexpanded > input.nml || exit 1
-        #expandVariables --> script that takes in envFile variable contents; can be a script in bin/?, lib/?, etc/?
-        #< input.nml.unexpanded --> input redirection; feeds content of input.expanded into expandVariables command
-        #                           as stdin
-        #> input.nml --> output redirection; captures stdoutput of command and writes it to input.nml
-        ####
+        {# REGRESSION RUN #}
+        ## regression_on or production_on can be set in the [run][switches] section
+        ## if R1 defined again, sections are merged not overwritten
+        {% if run.switches.regression_on is defined %}
+            R1 = """
+                LOAD-DATA[^] => run-model => configure-ascii-argfile
+                CONFIGURE-FILES:succeed-all => stage-ascii-argfile
+                OUTPUT-STAGER:succeed-all => CLEAN
+            """
+        {% endif %}
 
-        expand-namelists => gen-srun => CONFIGURE-FILES
-        ####
-        #[[configure-ascii-argfile]]
-        #[[configure-restart-argfile]]
-        #hmm rename region history files and pp-starter options ?--> [[configure-history-argfiles]] (for pp-starter?)
-        #other stuff THEN [[configure-reload-file]]
-        ####
+        #PRODUCTION RUN
+        {% if run.switches.production_on is defined %}
+        ## REPEAT EVERY SEGMENT_SIMTIME ##
+            {{ PROD_SEGMENT_SIMTIME }} = """
+                # base tasks
+                LOAD-DATA[^] => run-model => configure-ascii-argfile &
+                                            configure-restart-file
+                CONFIGURE-FILES:succeed-all => stage-ascii-argfile
+                OUTPUT-STAGER:succeed-all => configure-reload-file (seems to be all the way at the end in main loop) => RUN RELOADED FILE => CLEAN
 
-        CONFIGURE-FILES:succeed-all => output-stager => configure-reload-file => CLEAN
-        ####
-        #[[what to clean, what to clean]]
-        ####
+                {# if you want postprocessing done, add child tasks ...#}
+                {% if pp .... is defined %}
+                    run-model => configure-history-argfile (??????????????????????)
+                    CONFIGURE-FILES:succeed-all => stage-history-argfile
+                {% endif %}
 
+                # Inter-cycle dependency
+                # Output of year 1 becomes input for year 2
+                # run-model (ex - for year 1) will wait to start until run-model
+                # for previous year finishes and outputs what it needs to
+                run-model[-{{ PROD_SEGMENT_SIMTIME }}] => run-model
 
-        #####
-        #THINGS TO THINK ABOUT:
-        # - better ensemble support
-        # - easibility to create YAML configs
-        #####
+##after main loop
+#says reload and resubmit if needed for production runs only
+#something like... if there's a queue file?, then source the queue file
+#then look for continueflag --> if false, just exit
+#if not false --> submit a script ... like this? submit -O "$nextOptions" $scriptName
+#THEN CLEAN
+#also after cleaning...what the heck is ninac?
+#################
+            """
+        {% endif %}
+
+#####
+#THINGS TO THINK ABOUT:
+# - everything that needs to be cleaned
+# - better ensemble support
+# - easibility to create YAML configs
+#####
