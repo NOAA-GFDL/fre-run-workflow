@@ -1,10 +1,15 @@
 #!jinja2
 
 {# fre version should be programatically set, not hard-coded. #}
-{% set FRE_VERSION = fre_properties.FRE_VERSION %}
-{% set SITE = fre_properties.SITE %}
-{% set EXPERIMENT = name %}
-{% set PROD_SEGMENT_SIMTIME = run.input.runtime_mode %}
+{% set FRE_VERSION = "2026.01.alpha3" %}
+{% set SITE = "gaea" %}
+{% set EXPERIMENT = "name" %}
+{% set PROD_SEGMENT_SIMTIME = "P1Y" %}
+{% set EXP_START = "1979" %}
+{% set EXP_STOP = "1984" %}
+{% set regression_on = True %}
+{% set production_on = False %}
+
 {# include 'platforms/platform.cylc' #}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
@@ -26,7 +31,7 @@
     URL = https://github.com/singhd789/fre-run-workflow/blob/main/README.md
 
 [scheduler]
-    UTC = True
+    UTC mode = True
     allow implicit tasks =  False
     install = etc/*, lib/*
     [[events]]
@@ -57,7 +62,6 @@
         #setup-dirs (and error checking for listing/access to relevant configs?) =>
         #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable), expand-namelist? =>
         #gen-srun (mpi call; execute it and analyze results)=>
-        #configure-ascii, configure-restart, namelists, tables,...?? =>
         #output-stager (submit-ascii-and-restart) =>
         #write-reload-files (reload and resubmit if needed?) =>
         #clean-tasks
@@ -65,39 +69,30 @@
 
         {# Setting up the directories can be done once for both the production and regression workflows #}
         R1 = """
-            SETUP-DIRS:succeed-all => load-datafiles &
-                                    load-diagtable &
-                                    load-datatable &
-                                    load-fieldtable &
-                                    load-executable &
-                                    expand-namelists
+            SETUP-DIRS:succeed-all => verify-setup => LOAD-DATA
         """
 
         {# REGRESSION RUN #}
         ## regression_on or production_on can be set in the [run][switches] section
         ## if R1 defined again, sections are merged not overwritten
-        {% if run.switches.regression_on is defined %}
+        {% if regression_on %}
             R1 = """
-                LOAD-DATA[^] => run-model => configure-ascii-argfile
-                CONFIGURE-FILES:succeed-all => stage-ascii-argfile
-                OUTPUT-STAGER:succeed-all => CLEAN
+                LOAD-DATA[^]:succeed-all => run-model => OUTPUT-STAGER => CLEAN
             """
         {% endif %}
 
         #PRODUCTION RUN
-        {% if run.switches.production_on is defined %}
+        {% if production_on %}
+            R1 = """
+                LOAD-DATA[^]:succeed-all => run-model
+            """
         ## REPEAT EVERY SEGMENT_SIMTIME ##
             {{ PROD_SEGMENT_SIMTIME }} = """
-                # base tasks
-                LOAD-DATA[^] => run-model => configure-ascii-argfile &
-                                            configure-restart-file
-                CONFIGURE-FILES:succeed-all => stage-ascii-argfile
-                OUTPUT-STAGER:succeed-all => configure-reload-file (seems to be all the way at the end in main loop) => RUN RELOADED FILE => CLEAN
+                run-model => OUTPUT-STAGER => CLEAN
 
                 {# if you want postprocessing done, add child tasks ...#}
-                {% if pp .... is defined %}
-                    run-model => configure-history-argfile (??????????????????????)
-                    CONFIGURE-FILES:succeed-all => stage-history-argfile
+                {% if pp is defined %}
+                    run-model => OUTPUT-STAGER-PP => CLEAN
                 {% endif %}
 
                 # Inter-cycle dependency
@@ -123,3 +118,39 @@
 # - better ensemble support
 # - easibility to create YAML configs
 #####
+[runtime]
+    [[root]]
+        [[[environment]]]
+            fre_yaml = $CYLC_WORKFLOW_RUN_DIR/{{ YAML }}
+
+    [[SETUP-DIRS]]
+    [[setup-workdir]]
+        inherit = SETUP-DIRS
+    [[setup-statedir]]
+        inherit = SETUP-DIRS
+    [[setup-ptmpdir]]
+        inherit = SETUP-DIRS
+
+    [[verify-setup]]
+
+    [[LOAD-DATA]]
+    [[load-diagtable]]
+        inherit = LOAD-DATA
+    [[load-datatable]]
+        inherit = LOAD-DATA
+    [[load-fieldtable]]
+        inherit = LOAD-DATA
+    [[load-datafiles]]
+        inherit = LOAD-DATA
+    [[load-executable]]
+        inherit = LOAD-DATA
+    [[expand-namelists]]
+        inherit = LOAD-DATA
+
+    [[run-model]]
+
+    [[OUTPUT-STAGER]]
+
+    [[CLEAN]]
+
+        
