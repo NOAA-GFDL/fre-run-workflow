@@ -7,8 +7,8 @@
 {% set PROD_SEGMENT_SIMTIME = "P1Y" %}
 {% set EXP_START = "1979" %}
 {% set EXP_STOP = "1984" %}
-{% set regression_on = True %}
-{% set production_on = False %}
+{% set regression_on = False %}
+{% set production_on = True %}
 
 {# include 'platforms/platform.cylc' #}
 
