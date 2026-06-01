@@ -4,7 +4,16 @@
 {% set FRE_VERSION = "2026.01.alpha3" %}
 {% set SITE = "gaea" %}
 {% set EXPERIMENT = "name" %}
+
+{% set PROD_WALLCLOCK = "P16H" %}
+{% set PROD_SEG_RUNTIME = "P8H" %}
 {% set PROD_SEGMENT_SIMTIME = "P1Y" %}
+
+{# set NUM_BATCH_JOBS = PROD_WALLCLOCK/PROD_SEG_RUNTIME #} ## 2
+{# set BATCH_CYCLE = PROD_SEGMENT_SIMTIME*NUM_BATCH_JOBS #} ## P2Y
+{% set BATCH_CYCLE = "P2Y" %}
+
+
 {% set EXP_START = "1979" %}
 {% set EXP_STOP = "1984" %}
 {% set regression_on = False %}
@@ -69,7 +78,7 @@
 
         {# Setting up the directories can be done once for both the production and regression workflows #}
         R1 = """
-            SETUP-DIRS:succeed-all => verify-setup => LOAD-DATA
+            SETUP-DIRS:succeed-all
         """
 
         {# REGRESSION RUN #}
@@ -77,30 +86,29 @@
         ## if R1 defined again, sections are merged not overwritten
         {% if regression_on %}
             R1 = """
-                LOAD-DATA[^]:succeed-all => run-model => OUTPUT-STAGER => CLEAN
+                SETUP-DIRS[^]:succeed-all => run-model => configure-restart => OUTPUT-STAGER => CLEAN
             """
         {% endif %}
 
         #PRODUCTION RUN
         {% if production_on %}
             R1 = """
-                LOAD-DATA[^]:succeed-all => run-model
+                SETUP-DIRS[^]:succeed-all => run-model
             """
-        ## REPEAT EVERY SEGMENT_SIMTIME ##
+        ## REPEAT EVERY SEGMENT ##
             {{ PROD_SEGMENT_SIMTIME }} = """
-                run-model => OUTPUT-STAGER => CLEAN
+                run-model => configure-restart => OUTPUT-STAGER => transfer-data => CLEAN
 
                 {# if you want postprocessing done, add child tasks ...#}
                 {% if pp is defined %}
-                    run-model => OUTPUT-STAGER-PP => CLEAN
+                    run-model => configure-restart => OUTPUT-STAGER-PP => transfer-data => CLEAN
                 {% endif %}
 
                 # Inter-cycle dependency
                 # Output of year 1 becomes input for year 2
                 # run-model (ex - for year 1) will wait to start until run-model
                 # for previous year finishes and outputs what it needs to
-                run-model[-{{ PROD_SEGMENT_SIMTIME }}] => run-model
-
+                configure-restart[-{{ PROD_SEGMENT_SIMTIME }}] => run-model
 ##after main loop
 #says reload and resubmit if needed for production runs only
 #something like... if there's a queue file, then source the queue file
@@ -128,28 +136,30 @@
         inherit = SETUP-DIRS
     [[setup-statedir]]
         inherit = SETUP-DIRS
-    [[setup-ptmpdir]]
-        inherit = SETUP-DIRS
 
-    [[verify-setup]]
-
-    [[LOAD-DATA]]
-    [[load-diagtable]]
-        inherit = LOAD-DATA
-    [[load-datatable]]
-        inherit = LOAD-DATA
-    [[load-fieldtable]]
-        inherit = LOAD-DATA
-    [[load-datafiles]]
-        inherit = LOAD-DATA
-    [[load-executable]]
-        inherit = LOAD-DATA
-    [[expand-namelists]]
-        inherit = LOAD-DATA
+#    [[load-diagtable]]
+#        inherit = setup-workdir
+#    [[load-datatable]]
+#        inherit = setup-workdir
+#    [[load-fieldtable]]
+#        inherit = setup-workdir
+#    [[load-datafiles]]
+#        inherit = setup-workdir
+#    [[load-executable]]
+#        inherit = setup-workdir
+#    [[expand-namelists]]
+#        inherit = setup-workdir
 
     [[run-model]]
+    #CURRENT_SEGMENT=$CYLC_TASK_CYCLE_POINT
+    #for i in {each segment - P12M/P1Y}; do
+    #
+
+    [[configure-restart]]
 
     [[OUTPUT-STAGER]]
+
+    [[transfer-data]]
 
     [[CLEAN]]
 
