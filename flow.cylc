@@ -74,14 +74,6 @@
             limit = 1
             members = CLEAN
     [[graph]]
-        #### OVERALL
-        #setup-dirs (and error checking for listing/access to relevant configs?) =>
-        #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable), expand-namelist? =>
-        #gen-srun (mpi call; execute it and analyze results)=>
-        #output-stager (submit-ascii-and-restart) =>
-        #clean-tasks
-        ####
-
         {# Setting up the directories can be done once for both the production and regression workflows #}
         R1 = """
             input-stager
