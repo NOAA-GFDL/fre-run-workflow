@@ -1,24 +1,28 @@
 #!jinja2
 
-{# fre version should be programatically set, not hard-coded. #}
+{# fre version should be programatically set in yaml, not hard-coded. #}
 {% set FRE_VERSION = "2026.01.alpha3" %}
 {% set SITE = "gaea" %}
 {% set EXPERIMENT = "name" %}
 
-{# SET NUMBER OF SEGMENTS PER BATCH JOB FROM YAML INFORMATION #}
+{# GET NUMBER OF SEGMENTS PER BATCH JOB FROM YAML INFORMATION #}
+# defined by system, total time can fit 2 segments per batch job
 {% set PROD_WALLCLOCK = "P16H" %}
+# how long it takes to run 1 segment
 {% set PROD_SEG_RUNTIME = "P8H" %}
 {# Strip letters and convert to integer for multiplier (# of segments per job) #}
-{% set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | replace('P','') | replace('H','') | int) // (PROD_SEG_RUNTIME | replace('P','') | replace('H','') | int) %} ## =2
+## num segments that can run in wallclock time=2 in example
+{% set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | replace('P','') | replace('H','') | int) // (PROD_SEG_RUNTIME | replace('P','') | replace('H','') | int) %}
 
+# in example, 1 year runs in 1 segment
 {% set PROD_SEGMENT_SIMTIME = "P1Y" %}
 {% set UNIT = PROD_SEGMENT_SIMTIME[-1] %}
 {# Strip letters and convert to integer #}
-{% set SEGMENT_SIMTIME_MULTIPLIER = (PROD_SEGMENT_SIMTIME | replace('P','') | replace(UNIT,'') | int) %} ## =1
+{% set SEGMENT_SIMTIME_MULTIPLIER = (PROD_SEGMENT_SIMTIME | replace('P','') | replace(UNIT,'') | int) %} ## segment simtime with units stripped=1
 
-{% set BATCH_CYCLE = NUM_SEG_PER_JOB_MULTIPLIER * SEGMENT_SIMTIME_MULTIPLIER %} ## = 2 * 1
+## to get total # of segment simtime that can run in 1 16 hour batch job=2*1; ex - 2 years (1 year per segment) can run in 1 batch job
 {# Reconstruct ISO 8601 format #}
-{% set BATCH_CYCLE_FULL = 'P' ~ BATCH_CYCLE ~ UNIT %} ## =P2Y
+{% set BATCH_CYCLE = 'P' ~ NUM_SEG_PER_JOB_MULTIPLIER * SEGMENT_SIMTIME_MULTIPLIER ~ UNIT %}
 
 {% set EXP_START = "1979" %}
 {% set EXP_STOP = "1984" %}
@@ -75,6 +79,7 @@
             members = CLEAN
     [[graph]]
         {# Setting up the directories can be done once for both the production and regression workflows #}
+        {# Includes: getting/copying/moving executable/container, dataset nc files, namelist files, combined data, diag, and field tables #}
         R1 = """
             input-stager
         """
@@ -102,7 +107,7 @@
             """
 
             ## REPEAT EVERY SEGMENT ##
-            {{ BATCH_CYCLE_FULL }} = """
+            {{ BATCH_CYCLE }} = """
                 run-model => configure-restartdir => output-stager => transfer-data
 
                 {# if you want postprocessing done, add child tasks ...#}
@@ -114,7 +119,7 @@
                 # Output of year 1 becomes input for year 2
                 # run-model (ex - for year 1) will wait to start until run-model
                 # for previous year finishes and outputs what it needs to
-                configure-restartdir[-{{ BATCH_CYCLE_FULL }}] => run-model
+                configure-restartdir[-{{ BATCH_CYCLE }}] => run-model
 
                 {% if CLEAN_WORK %}
                     CLEAN
