@@ -5,19 +5,29 @@
 {% set SITE = "gaea" %}
 {% set EXPERIMENT = "name" %}
 
+{# SET NUMBER OF SEGMENTS PER BATCH JOB FROM YAML INFORMATION #}
 {% set PROD_WALLCLOCK = "P16H" %}
 {% set PROD_SEG_RUNTIME = "P8H" %}
+{# Strip letters and convert to integer for multiplier (# of segments per job) #}
+{% set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | replace('P','') | replace('H','') | int) // (PROD_SEG_RUNTIME | replace('P','') | replace('H','') | int) %} ## =2
+
 {% set PROD_SEGMENT_SIMTIME = "P1Y" %}
+{% set UNIT = PROD_SEGMENT_SIMTIME[-1] %}
+{# Strip letters and convert to integer #}
+{% set SEGMENT_SIMTIME_MULTIPLIER = (PROD_SEGMENT_SIMTIME | replace('P','') | replace(UNIT,'') | int) %} ## =1
 
-{# set NUM_BATCH_JOBS = PROD_WALLCLOCK/PROD_SEG_RUNTIME #} ## 2
-{# set BATCH_CYCLE = PROD_SEGMENT_SIMTIME*NUM_BATCH_JOBS #} ## P2Y
-{% set BATCH_CYCLE = "P2Y" %}
-
+{% set BATCH_CYCLE = NUM_SEG_PER_JOB_MULTIPLIER * SEGMENT_SIMTIME_MULTIPLIER %} ## = 2 * 1
+{# Reconstruct ISO 8601 format #}
+{% set BATCH_CYCLE_FULL = 'P' ~ BATCH_CYCLE ~ UNIT %} ## =P2Y
 
 {% set EXP_START = "1979" %}
 {% set EXP_STOP = "1984" %}
-{% set regression_on = False %}
-{% set production_on = True %}
+{% set regression_on = True %}
+{% set production_on = False %}
+
+{% set AUTO_PP = True %}
+{% set CLEAN_WORK = True %}
+{% set transfer = True %}
 
 {# include 'platforms/platform.cylc' #}
 
@@ -28,9 +38,6 @@
 {% if STALL_TIMEOUT is not defined %}
     {% set STALL_TIMEOUT = "P1W" %}
 {% endif %}
-
-{# The combined yaml is the definitive configuration source #}
-{% set YAML = EXPERIMENT + '.yaml' %}
 
 [meta]
     title = "Production run prototype #1"
@@ -72,13 +79,12 @@
         #load-data (data files, gridspec cases, initcond cases, executable, data tables, diag table, field table, executable), expand-namelist? =>
         #gen-srun (mpi call; execute it and analyze results)=>
         #output-stager (submit-ascii-and-restart) =>
-        #write-reload-files (reload and resubmit if needed?) =>
         #clean-tasks
         ####
 
         {# Setting up the directories can be done once for both the production and regression workflows #}
         R1 = """
-            SETUP-DIRS:succeed-all
+            input-stager
         """
 
         {# REGRESSION RUN #}
@@ -86,37 +92,41 @@
         ## if R1 defined again, sections are merged not overwritten
         {% if regression_on %}
             R1 = """
-                SETUP-DIRS[^]:succeed-all => run-model => configure-restart => OUTPUT-STAGER => CLEAN
+                input-stager[^] => run-model => configure-restartdir => output-stager
+                {% if transfer %}
+                    input-stager[^] => run-model => configure-restartdir => output-stager => transfer-data
+                {% endif %}
+
+                {% if CLEAN_WORK %}
+                    CLEAN
+                {% endif %}
             """
         {% endif %}
 
-        #PRODUCTION RUN
+        {# PRODUCTION RUN #}
         {% if production_on %}
             R1 = """
-                SETUP-DIRS[^]:succeed-all => run-model
+                input-stager[^] => run-model
             """
-        ## REPEAT EVERY SEGMENT ##
-            {{ PROD_SEGMENT_SIMTIME }} = """
-                run-model => configure-restart => OUTPUT-STAGER => transfer-data => CLEAN
+
+            ## REPEAT EVERY SEGMENT ##
+            {{ BATCH_CYCLE_FULL }} = """
+                run-model => configure-restartdir => output-stager => transfer-data
 
                 {# if you want postprocessing done, add child tasks ...#}
-                {% if pp is defined %}
-                    run-model => configure-restart => OUTPUT-STAGER-PP => transfer-data => CLEAN
+                {% if AUTO_PP %}
+                    run-model => configure-restartdir => output-stager => transfer-data => auto-pp
                 {% endif %}
 
                 # Inter-cycle dependency
                 # Output of year 1 becomes input for year 2
                 # run-model (ex - for year 1) will wait to start until run-model
                 # for previous year finishes and outputs what it needs to
-                configure-restart[-{{ PROD_SEGMENT_SIMTIME }}] => run-model
-##after main loop
-#says reload and resubmit if needed for production runs only
-#something like... if there's a queue file, then source the queue file
-#then look for continueflag --> if false, just exit
-#if not false --> submit a script ... like this? submit -O "$nextOptions" $scriptName
-#THEN CLEAN
-#also after cleaning... ninac?
-#################
+                configure-restartdir[-{{ BATCH_CYCLE_FULL }}] => run-model
+
+                {% if CLEAN_WORK %}
+                    CLEAN
+                {% endif %}
             """
         {% endif %}
 
@@ -128,39 +138,70 @@
 #####
 [runtime]
     [[root]]
-        [[[environment]]]
-            fre_yaml = $CYLC_WORKFLOW_RUN_DIR/{{ YAML }}
+        init-script = """
+            # stock fre-cli
+            module load fre/{{ FRE_VERSION }}
+
+            # custom user fre-cli
+            #module load conda
+            #conda activate user-fre-cli
+
+            which fre
+            module list
+        """
 
     [[SETUP-DIRS]]
-    [[setup-workdir]]
+    [[input-stager]]
         inherit = SETUP-DIRS
+        ## List files from yaml (can use fre list..?
+        ## move those files to workDir
+
+        #pre-script = """
+        #    module load fms-yaml-tools
+        #"""
+        #script = """
+        #    ds_list=fre list datasets --> can happen in fre run input-stager?
+        #    nml_list=fre list nml-files --> can happen in fre run input-stager?
+        #    data_table=combine-data-table-yamls --options
+        #    diag_table=combine-diag-table-yamls --options
+        #    field_table=combine-field-table-yamls --options
+        #    fre run input-stager -y [model yaml OR RESOLVED yaml?] --diag-table [combined yaml] --data-table [combined yaml] --field-table [combined yaml] --executable [path?]
+        #"""
+        #[[[environment]]]
+            # things from yaml: diag, data, field table paths, executable, datasets, namelist information
+
     [[setup-statedir]]
         inherit = SETUP-DIRS
 
-#    [[load-diagtable]]
-#        inherit = setup-workdir
-#    [[load-datatable]]
-#        inherit = setup-workdir
-#    [[load-fieldtable]]
-#        inherit = setup-workdir
-#    [[load-datafiles]]
-#        inherit = setup-workdir
-#    [[load-executable]]
-#        inherit = setup-workdir
-#    [[expand-namelists]]
-#        inherit = setup-workdir
-
     [[run-model]]
-    #CURRENT_SEGMENT=$CYLC_TASK_CYCLE_POINT
-    #for i in {each segment - P12M/P1Y}; do
-    #
+        script = """
+            for seg in $(seq 1 $num_segments);do
+                if [ $seg -eq 1 ]; then
+                    #segment 1
+                    fre run gen-srun -y [model yaml] --submit --start-time=$CYLC_TASK_CYCLE_POINT --duration=$segment_simtime
+                else
+                    #segment 2+
+                    segment2_start=$(cylc cyclepoint --offset="$segment_simtime" "$CYLC_TASK_CYCLE_POINT")
+                    fre run gen-srun -y [model yaml] --submit --start-time=$segment2_start --duration=$segment_simtime
+                fi
+            done
+        """
+        [[[environment]]]
+            num_segments = {{ NUM_SEG_PER_JOB_MULTIPLIER }}
+            segment_simtime = {{ PROD_SEGMENT_SIMTIME }}
+        [[[directives]]]
+            #ahhhhhhhhhh
 
-    [[configure-restart]]
-
-    [[OUTPUT-STAGER]]
-
+    [[configure-restartdir]]
+        script = """
+            segment2_start=$(cylc cyclepoint --offset="$segment_simtime" "$CYLC_TASK_CYCLE_POINT")
+            move-restart-data "$CYLC_TASK_CYCLE_POINT"
+            move-restart-data "$segment_simtime"
+        """
+    [[output-stager]]
+        #script = fre run output-stager ...
     [[transfer-data]]
-
+        #script = fre run transfer
+    [[auto-pp]]
+        #script = fre pp all
     [[CLEAN]]
-
-        
