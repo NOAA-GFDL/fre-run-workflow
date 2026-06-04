@@ -74,7 +74,6 @@
             limit = 1
             members = CLEAN
     [[graph]]
-        #comment
         {# Setting up the directories can be done once for both the production and regression workflows #}
         R1 = """
             input-stager
