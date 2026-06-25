@@ -1,6 +1,6 @@
 #!jinja2
 
-{# fre version should be programatically set in yaml, not hard-coded. #}
+{# fre version should be programmatically set in yaml, not hard-coded. #}
 {% set FRE_VERSION = "2026.01.alpha3" %}
 {% set SITE = "gaea" %}
 {% set EXPERIMENT = "name" %}
@@ -37,7 +37,7 @@
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
 {# A use case for overriding this value is exhibited in the fre-workflows pipeline test_cloud_runner.yaml #}
-{# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort is stalled #}
+{# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort if stalled #}
 {# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' in the cylc play command #}
 {% if STALL_TIMEOUT is not defined %}
     {% set STALL_TIMEOUT = "P1W" %}
@@ -53,7 +53,7 @@
 [scheduler]
     UTC mode = True
     allow implicit tasks =  False
-    # At the moment etc/* is included in install to play arouns with some scripts to set up modules for the run (might be able to be in platforms.yaml?)
+    # At the moment etc/* is included in install to play around with some scripts to set up modules for the run (might be able to be in platforms.yaml?)
     # and lib/* is included from playing around with a location for a cylc pre-configure plugin
     install = etc/*, lib/*
     [[events]]
@@ -135,7 +135,7 @@
 #THINGS TO THINK ABOUT:
 # - everything that needs to be cleaned
 # - better ensemble support
-# - easibility to create YAML configs
+# - how simple it is to create YAML configs
 #####
 [runtime]
     [[input-stager]]
