@@ -1,12 +1,14 @@
 #!jinja2
 
 {# fre version should be programmatically set in yaml, not hard-coded. #}
+{# With cylc pre-configure plugin that might go in with next tag, this info will be retrieved from yaml#}
 {% set FRE_VERSION = "2026.01.alpha3" %}
 {% set SITE = "gaea" %}
 {% set EXPERIMENT = "name" %}
 
 {# GET NUMBER OF SEGMENTS PER BATCH JOB FROM YAML INFORMATION #}
 # defined by system, total time can fit 2 segments per batch job
+# JUST AN EXAMPLE, SEE NOTE ABOVE ABOUT CYLC PRE-CONFIGURE PLUGIN
 {% set PROD_WALLCLOCK = "P16H" %}
 # how long it takes to run 1 segment
 {% set PROD_SEG_RUNTIME = "P8H" %}
