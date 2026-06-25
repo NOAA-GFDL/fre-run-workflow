@@ -139,6 +139,7 @@
 # - everything that needs to be cleaned
 # - better ensemble support
 # - how simple it is to create YAML configs
+# - creating a generic/container site file....
 #####
 [runtime]
     [[input-stager]]
@@ -154,7 +155,7 @@
         #    data_table=combine-data-table-yamls --options
         #    diag_table=combine-diag-table-yamls --options
         #    field_table=combine-field-table-yamls --options
-        #    fre run input-stager -y [model yaml OR RESOLVED yaml?] --diag-table [combined yaml] --data-table [combined yaml] --field-table [combined yaml] --executable [path?]
+        #    fre run input-stager -y [model yaml] --diag-table [combined diag table yaml] --data-table [combined data table yaml] --field-table [combined field table yaml] --executable [path?]
         #"""
         #[[[environment]]]
             # things from yaml: diag, data, field table paths, executable, datasets, namelist information
@@ -174,7 +175,7 @@
                 fi
             done
 
-        ###Do I even need the configure-restart task then??? if the --output will be the --input?
+        ###Do I need the configure-restart task if the --output will be the --input?
         """
         [[[environment]]]
             num_segments = {{ NUM_SEG_PER_JOB_MULTIPLIER }}
@@ -195,10 +196,10 @@
     [[transfer-data]]
         #pre-script = 
         #script = """
-        #fre run transfer?
-        #just use gcp? (if on gaea)
-        #rsync?
-        #scp?
+        #    fre run transfer
+        #    just use gcp? (if on gaea)
+        #    rsync?
+        #    scp?
         #"""
         #[[[environment]]]
 
