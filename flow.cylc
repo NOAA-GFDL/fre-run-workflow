@@ -31,7 +31,8 @@
 {% set regression_on = False %}
 {% set production_on = True %}
 
-{% set AUTO_PP = False %}
+##THIS COULD BE A RUNTIME SWITCH SET IN THE YAML
+{% set DO_POSTPROCESS = False %}
 {% set CLEAN_WORK = True %}
 {% set transfer = True %}
 
@@ -117,7 +118,7 @@
                 run-model => configure-restartdir => output-stager => transfer-data
 
                 {# if you want postprocessing done, add child tasks ...#}
-                {% if AUTO_PP %}
+                {% if DO_POSTPROCESS %}
                     run-model => configure-restartdir => output-stager => transfer-data => auto-pp
                 {% endif %}
 
@@ -202,7 +203,7 @@
         #[[[environment]]]
 
     # figure out what the trigger should/could be
-    {% if LAUNCH_PP %}
+    {% if DO_POSTPROCESS %}
         [[auto-pp]]
             #pre-script = 
             #script = """
