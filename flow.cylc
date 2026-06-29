@@ -13,13 +13,9 @@
 
 {# Strip letters and convert to integer for multiplier (# of segments per job) #}
 ## num segments that can run in wallclock time => 2 in example
-{# set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | replace('P','') | replace('H','') | int) // (PROD_SEG_RUNTIME | replace('P','') | replace('H','') | int) #}
-
 ##duration_as is a built-in cylc Jinja2 filter
 #variables need to be in ISO801 format though (PT#H/M)
 {% set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | duration_as('m') | int ) // (PROD_SEG_RUNTIME | duration_as('m') | int ) %}
-
-
 
 # in example, 1 year runs in 1 segment
 {% set PROD_SEGMENT_SIMTIME = "P1Y" %}
@@ -34,6 +30,7 @@
 {% set EXP_START = "1979" %}
 {% set EXP_STOP = "1984" %}
 
+### SWITCHES
 ##THESE COULD BE A RUNTIME SWITCH SET IN THE YAML?
 #OR COULD BE SET BY A JINJA FILTER OF SOME SORT
 {% set REGRESSION_ON = False %}
@@ -42,6 +39,7 @@
 {% set DO_POSTPROCESS = True %}
 {% set CLEAN_WORK = True %}
 
+##just something I'm playing around with
 {# include 'platforms/platform.cylc' #}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
