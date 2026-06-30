@@ -78,8 +78,7 @@
 [task parameters]
     #should be comma separated strings
     {% if REGRESSION_ON %}
-        {# set regression_type = YAML | get_regression_types #}
-        regression_type = basic, timing
+        regression_type = {{ run.runtime_mode.regression.keys() | list | join(', ') }}
     {% endif %}
 
 [scheduling]

@@ -1,0 +1,54 @@
+from cylc.flow import LOG
+from pathlib import Path
+import yaml
+
+def pre_configure(srcdir=None, opts=None, rundir=None): #, jinja2_vars=None):
+    LOG.info(" *** CALLING READ_YAML PLUGIN *** ")
+
+    yml_info = {}
+
+    # Find yaml file
+    yaml_files = Path(srcdir).glob("*.yaml")
+    yamls = []
+    for yf in yaml_files:
+        if yf.name != "environment.yaml":
+            yamls.append(yf)
+
+    if len(yamls) != 1:
+        raise ValueError("Too many YAML configs in cylc-src dir- don't know which is experiment yaml")
+
+    print(yamls[0])
+    yaml_file = yamls[0]
+
+    # Load yaml file 
+    if yaml_file:
+        yf = yaml_file
+        with open(yf, 'r') as f:
+            yml_info = yaml.safe_load(f)
+
+    LOG.info(yml_info)
+    if yml_info:
+        LOG.info(f"YAML FILE {yaml_file} DETECTED")
+        return {'template_variables': yml_info,
+                'templating_detected': 'jinja2'}
+    else:
+        LOG.info("NO YAML DETECTED")
+        return {}
+
+####another things to try
+#    # inject/mutate jinja2_vars directly 
+#    if yml_info and jinja2_vars is not None:
+#        jinja2_vars['yml'] = yml_info
+#
+#    return {'template_variables': {'yml': yml_info},
+#            'templating_detected': 'jinja2'}
+####
+
+## want this script to accept resolved yaml and create everything needed to run workflow
+# - in dictionary format
+# - gets rid of rose-suite.conf
+# - removes dependency on cylc-rose...I think
+
+## questions/notes:
+# - can function in this script be anything? or does it need to be post_install to be recognized? (as a plugin type)
+# - I think it can be anything as long as its registered under one of the plugin types in setup.py 
