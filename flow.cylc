@@ -1,19 +1,54 @@
 #!jinja2
 
-{# fre version should be programatically set, not hard-coded. #}
-{% set FRE_VERSION = "2026.01.alpha2" %}
-{% set SITE = SITE %}
+{# fre version should be programmatically set in yaml, not hard-coded. #}
+## NOTE: With cylc pre-configure plugin that might go in with next tag, this info will be retrieved from yaml 
+{% set FRE_VERSION = "2026.01.alpha3" %}
+{% set SITE = "gaea" %}
+{% set EXPERIMENT = "name" %}
+
+{# GET NUMBER OF SEGMENTS PER BATCH JOB FROM YAML INFORMATION #}
+# JUST AN EXAMPLE, SEE NOTE ABOVE ABOUT CYLC PRE-CONFIGURE PLUGIN
+{% set PROD_WALLCLOCK = "PT16H" %}   # defined by system and in yaml
+{% set PROD_SEG_RUNTIME = "PT8H" %}  # how long it takes to run 1 segment
+
+{# Strip letters and convert to integer for multiplier (# of segments per job) #}
+## num segments that can run in wallclock time => 2 in example
+##duration_as is a built-in cylc Jinja2 filter
+#variables need to be in ISO801 format though (PT#H/M)
+{% set NUM_SEG_PER_JOB_MULTIPLIER = (PROD_WALLCLOCK | duration_as('m') | int ) // (PROD_SEG_RUNTIME | duration_as('m') | int ) %}
+
+# in example, 1 year runs in 1 segment
+{% set PROD_SEGMENT_SIMTIME = "P1Y" %}
+{% set UNIT = PROD_SEGMENT_SIMTIME[-1] %}
+{# Strip letters and convert to integer #}
+{% set SEGMENT_SIMTIME_MULTIPLIER = (PROD_SEGMENT_SIMTIME | replace('P','') | replace(UNIT,'') | int) %} ## segment simtime with units stripped=1
+
+## to get total # of segment simtime that can run in 1 16 hour batch job=2*1; ex - 2 years (1 year per segment) can run in 1 batch job
+{# Reconstruct ISO 8601 format #}
+{% set BATCH_CYCLE = 'P' ~ NUM_SEG_PER_JOB_MULTIPLIER * SEGMENT_SIMTIME_MULTIPLIER ~ UNIT %}
+
+{% set EXP_START = "1979" %}
+{% set EXP_STOP = "1984" %}
+
+### SWITCHES
+##THESE COULD BE A RUNTIME SWITCH SET IN THE YAML?
+#OR COULD BE SET BY A JINJA FILTER OF SOME SORT
+{% set REGRESSION_ON = False %}
+{% set PRODUCTION_ON = True %}
+{% set DO_TRANSFER = False %}
+{% set DO_POSTPROCESS = True %}
+{% set CLEAN_WORK = True %}
+
+##just something I'm playing around with
+{# include 'platforms/platform.cylc' #}
 
 {# Setting STALL_TIMEOUT here provides the ability to override the value if necessary #}
 {# A use case for overriding this value is exhibited in the fre-workflows pipeline test_cloud_runner.yaml #}
-{# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort is stalled #}
-{# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' #}
+{# In this pipeline, the stall timeout will be 0 in order for the workflow to immediately abort if stalled #}
+{# This is helpful for testing pipelines; this value can be set as 'STALL_TIMEOUT="PT0S"' in the cylc play command #}
 {% if STALL_TIMEOUT is not defined %}
     {% set STALL_TIMEOUT = "P1W" %}
 {% endif %}
-
-{# The combined yaml is the definitive configuration source #}
-{% set YAML = EXPERIMENT + '.yaml' %}
 
 [meta]
     title = "Production run prototype #1"
@@ -23,9 +58,11 @@
     URL = https://github.com/singhd789/fre-run-workflow/blob/main/README.md
 
 [scheduler]
-    UTC = True
+    UTC mode = True
     allow implicit tasks =  False
-    install =
+    # At the moment etc/* is included in install to play around with some scripts to set up modules for the run (might be able to be in platforms.yaml?)
+    # and lib/* is included from playing around with a location for a cylc pre-configure plugin
+    install = etc/*, lib/*
     [[events]]
         stall timeout = {{ STALL_TIMEOUT }}
         {% if DO_WORKFLOW_EMAIL is defined and DO_WORKFLOW_EMAIL %}
@@ -36,5 +73,159 @@
         footer = """
         Workflow: %(workflow)s
         Host: %(host)s
-        Event notification: %(message)s
         """
+
+[task parameters]
+
+
+[scheduling]
+    initial cycle point = {{ EXP_START }}
+    final cycle point = {{ EXP_STOP }}
+    [[queues]]
+        [[[default]]]
+            limit = 50
+        [[[clean]]]
+            limit = 1
+            members = CLEAN
+    [[graph]]
+        {# Setting up the directories can be done once for both the production and regression workflows #}
+        {# Includes: getting/copying/moving executable/container, dataset nc files, namelist files, combined data, diag, and field tables #}
+        R1 = """
+            input-stager
+        """
+
+        {# REGRESSION RUN #}
+        ## regression_on or production_on can be set in the [run][switches] section
+        ## if R1 defined again, sections are merged not overwritten
+        {% if REGRESSION_ON %}
+            R1 = """
+                input-stager[^] => run-model => configure-restartdir
+                run-model => output-stager 
+                {% if DO_TRANSFER %}
+                    output-stager => transfer-data
+                {% endif %}
+
+                {% if CLEAN_WORK %}
+                    output-stager => clean-output-stager
+                    transfer-data =>    clean-transfer-data
+                {% endif %}
+            """
+        {% endif %}
+
+        {# PRODUCTION RUN #}
+        {% if PRODUCTION_ON %}
+            R1 = """
+                input-stager[^] => run-model
+            """
+
+            ## BATCH CYCLE is the total segment simtime that can run inside one batch job ##
+            ## in a 16 hour wallclock, with 8hour segment_runtime, with 1year segment_simtimes --> 2, 1 year segments can run 
+            ## BUT not sure if it's working the way I imagine or if cylc understands this ## 
+            {{ BATCH_CYCLE }} = """
+                run-model => configure-restartdir
+                run-model => output-stager
+
+                {% if DO_TRANSFER %}
+                    output-stager => transfer-data
+                {% endif %}
+
+                {# if you want postprocessing done, add child tasks ...#}
+                {% if DO_POSTPROCESS %}
+                    output-stager => transfer-data => auto-pp
+                {% endif %}
+
+                # Inter-cycle dependency
+                # Output of year 1 becomes input for year 2
+                # run-model (ex - for year 1) will wait to start until run-model
+                # for previous year finishes and outputs what it needs to
+                configure-restartdir[-{{ BATCH_CYCLE }}] => run-model
+
+                {% if CLEAN_WORK %}
+                    output-stager => clean-output-stager
+                    transfer-data =>    clean-transfer-data
+                {% endif %}
+            """
+        {% endif %}
+
+#####
+#THINGS TO THINK ABOUT:
+# - everything that needs to be cleaned
+# - better ensemble support
+# - how simple it is to create YAML configs
+# - creating a generic/container site file....
+#####
+[runtime]
+    [[input-stager]]
+        ## List files from yaml (can use fre list..?
+        ## move those files to workDir
+
+        #pre-script = """
+        #    module load fms-yaml-tools
+        #"""
+        #script = """
+        #    ds_list=fre list datasets --> can happen in fre run input-stager?
+        #    nml_list=fre list nml-files --> can happen in fre run input-stager?
+        #    data_table=combine-data-table-yamls --options
+        #    diag_table=combine-diag-table-yamls --options
+        #    field_table=combine-field-table-yamls --options
+        #    fre run input-stager -y [model yaml] --diag-table [combined diag table yaml] --data-table [combined data table yaml] --field-table [combined field table yaml] --executable [path?]
+        #"""
+        #[[[environment]]]
+            # things from yaml: diag, data, field table paths, executable, datasets, namelist information
+
+    [[run-model]]
+        script = """
+            # internal loop chains years within the batch job
+            # in ex: for seg in range(2) segments ...
+            for seg in $(seq 1 $num_segments);do
+                if [ $seg -eq 1 ]; then
+                    #segment 1
+                    fre run gen-srun -y [model yaml] --submit --start-time=$CYLC_TASK_CYCLE_POINT --duration=$segment_simtime --output [some restart?]
+                else
+                    #segment 2+
+                    segment2_start=$(cylc cyclepoint --offset="$segment_simtime" "$CYLC_TASK_CYCLE_POINT")
+                    fre run gen-srun -y [model yaml] --submit --start-time=$segment2_start --duration=$segment_simtime --input [outputrestart from seg1]
+                fi
+            done
+
+        ###Do I need the configure-restart task if the --output will be the --input?
+        """
+        [[[environment]]]
+            num_segments = {{ NUM_SEG_PER_JOB_MULTIPLIER }}
+            segment_simtime = {{ PROD_SEGMENT_SIMTIME }}
+
+    [[configure-restartdir]]
+        script = """
+            segment2_start=$(cylc cyclepoint --offset="$segment_simtime" "$CYLC_TASK_CYCLE_POINT")
+            move-restart-data "$CYLC_TASK_CYCLE_POINT"
+            move-restart-data "$segment_simtime"
+        """
+        [[[environment]]]
+            segment_simtime = {{ PROD_SEGMENT_SIMTIME }}
+
+    [[output-stager]]
+        #pre-script = 
+        #script = fre run output-stager ...
+        #[[[environment]]]
+
+    [[transfer-data]]
+        #pre-script = 
+        #script = """
+        #    fre run transfer
+        #    just use gcp? (if on gaea)
+        #    rsync?
+        #    scp?
+        #"""
+        #[[[environment]]]
+
+    # figure out what the trigger should/could be
+    [[auto-pp]]
+        #pre-script = 
+        #script = """
+        #    fre workflow all (checkout, install, and run) -y [model yaml]
+        #"""
+        #[[[environment]]]
+
+    [[CLEAN]]
+    [[clean-output-stager]]
+    [[clean-transfer-data]]
