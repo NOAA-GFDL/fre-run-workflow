@@ -33,8 +33,8 @@
 ### SWITCHES
 ##THESE COULD BE A RUNTIME SWITCH SET IN THE YAML?
 #OR COULD BE SET BY A JINJA FILTER OF SOME SORT
-{% set REGRESSION_ON = False %}
-{% set PRODUCTION_ON = True %}
+{% set REGRESSION_ON = True %}
+{% set PRODUCTION_ON = False %}
 {% set DO_TRANSFER = False %}
 {% set DO_POSTPROCESS = True %}
 {% set CLEAN_WORK = True %}
@@ -100,12 +100,13 @@
             R1 = """
                 input-stager[^] => run-model => configure-restartdir
                 run-model => output-stager 
-                {% if transfer %}
+                {% if DO_TRANSFER %}
                     output-stager => transfer-data
                 {% endif %}
 
                 {% if CLEAN_WORK %}
-                    CLEAN
+                    output-stager => clean-output-stager
+                    transfer-data =>    clean-transfer-data
                 {% endif %}
             """
         {% endif %}
@@ -139,7 +140,8 @@
                 configure-restartdir[-{{ BATCH_CYCLE }}] => run-model
 
                 {% if CLEAN_WORK %}
-                    CLEAN
+                    output-stager => clean-output-stager
+                    transfer-data =>    clean-transfer-data
                 {% endif %}
             """
         {% endif %}
@@ -224,3 +226,5 @@
         #[[[environment]]]
 
     [[CLEAN]]
+    [[clean-output-stager]]
+    [[clean-transfer-data]]
