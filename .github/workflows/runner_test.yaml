@@ -57,3 +57,8 @@ jobs:
           echo "fre-cli repo: $(git remote -v)"
           echo "fre-cli branch: $(git branch)"
           cd -
+      - name: Pull and run fre-cli container
+        run: |
+          docker pull fre-cli.sif docker://ghcr.io/noaa-gfdl/fre-cli:production
+          docker images
+          singularity exec --writable-tmpfs ${bind paths} fre-cli.sif ${runscript_path}
