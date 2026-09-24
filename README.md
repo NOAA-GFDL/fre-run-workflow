@@ -1,7 +1,7 @@
 # fre-run-workflow
-The `fre-run-workflow` repository holds GFDL's next-generation FRE (FMS Runtime Environment) workflow configuration template for the runtime. This template utilizes Cylc, a general purpose workflow engine that is very efficient for cyclic systems. In this workflow, tasks are defined, along with a task graph to determine task dependencies and when they run in the runtime workflow. 
+The `fre-run-workflow` repository holds GFDL's next-generation FRE (FMS Runtime Environment) workflow configuration template for the running a model. This workflow will be able to support production and regression cycles that will utilize fre-cli subtools to stage input files (to set up a working directory), run the model executable or container, configure restart files, stage output files, transfer model output to PP/AN (if wanted), and run FRE Canopy post-processing (using the fre-postprocess-workflow) (if wanted).
 
-For more information, see cylc's user guide here.
+This workflow template utilizes Cylc, a general purpose workflow engine that is very efficient for cyclic systems.For more information, see [cylc's user guide here](https://cylc.github.io/cylc-doc/stable/html/user-guide/index.html).
 
 # `fre-cli` Model Running Instructions
 
@@ -14,4 +14,3 @@ For more information, see cylc's user guide here.
 # Contributing Guidelines
 
 (to be added)
-
