@@ -3,14 +3,35 @@ The `fre-run-workflow` repository holds GFDL's next-generation FRE (FMS Runtime 
 
 This workflow template utilizes Cylc, a general purpose workflow engine that is very efficient for cyclic systems.For more information, see [cylc's user guide here](https://cylc.github.io/cylc-doc/stable/html/user-guide/index.html).
 
-# `fre-cli` Model Running Instructions
+## Model Running Instructions (to be updated/developed)
 
-(to be added)
+(to be added/developed)
+### Setup
+### Guide/more info
 
-# Developer Instructions
+## Quickstart (to be updated/developed)
 
-(to be added)
+If on Gaea, follow the instructions below: 
 
-# Contributing Guidelines
+```
+# Load FRE
+module load fre/<version>
 
-(to be added)
+# NOT YET DEVELOPED - will replace commands below
+# fre workflow all -y [model yaml file] -e [experiment name] -p [platform] -t [target]
+
+git clone https://github.com/NOAA-GFDL/fre-run-workflow.git ~/cylc-src/run-wf-test
+cylc install run-wf-test
+cylc validate run-wf-test
+#cylc play run-wf-test
+```
+
+## Developer Overview and Instructions (to be updated)
+
+### `Cylc` Configuration
+For an overview on cylc configurations, see [here](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-configuration-)
+
+### Cylc Platforms
+### Cylc Workflows
+
+## Contributing Guidelines (to be added)
