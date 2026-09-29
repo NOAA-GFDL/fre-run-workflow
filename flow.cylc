@@ -33,9 +33,9 @@
 ### SWITCHES
 ##THESE COULD BE A RUNTIME SWITCH SET IN THE YAML?
 #OR COULD BE SET BY A JINJA FILTER OF SOME SORT
-{% set REGRESSION_ON = False %}
-{% set PRODUCTION_ON = True %}
-{% set DO_TRANSFER = False %}
+{% set REGRESSION_ON = True %}
+{% set PRODUCTION_ON = False %}
+{% set DO_TRANSFER = True %}
 {% set DO_POSTPROCESS = True %}
 {% set CLEAN_WORK = True %}
 
@@ -76,7 +76,10 @@
         """
 
 [task parameters]
-
+    #should be comma separated strings
+    {% if REGRESSION_ON %}
+        regression_type = {{ run.runtime_mode.regression.keys() | list | join(', ') }}
+    {% endif %}
 
 [scheduling]
     initial cycle point = {{ EXP_START }}
@@ -99,15 +102,18 @@
         ## if R1 defined again, sections are merged not overwritten
         {% if REGRESSION_ON %}
             R1 = """
-                input-stager[^] => run-model => configure-restartdir
-                run-model => output-stager 
+                input-stager[^] => run-model<regression_type> => configure-restartdir<regression_type>
+                run-model<regression_type> => output-stager<regression_type>
                 {% if DO_TRANSFER %}
-                    output-stager => transfer-data
+                    output-stager<regression_type> => transfer-data<regression_type>
                 {% endif %}
 
                 {% if CLEAN_WORK %}
-                    output-stager => clean-output-stager
-                    transfer-data =>    clean-transfer-data
+                    output-stager<regression_type> => clean-output-stager<regression_type>
+
+                    {% if DO_TRANSFER %}
+                        transfer-data<regression_type> => clean-transfer-data<regression_type>
+                    {% endif %}
                 {% endif %}
             """
         {% endif %}
@@ -194,6 +200,7 @@
             num_segments = {{ NUM_SEG_PER_JOB_MULTIPLIER }}
             segment_simtime = {{ PROD_SEGMENT_SIMTIME }}
 
+
     [[configure-restartdir]]
         script = """
             segment2_start=$(cylc cyclepoint --offset="$segment_simtime" "$CYLC_TASK_CYCLE_POINT")
@@ -226,6 +233,15 @@
         #"""
         #[[[environment]]]
 
+    {% if REGRESSION_ON %}
+    [[run-model<regression_type>]]
+    [[configure-restartdir<regression_type>]]
+    [[output-stager<regression_type>]]
+    [[transfer-data<regression_type>]]
+    {% endif %}
+
     [[CLEAN]]
     [[clean-output-stager]]
     [[clean-transfer-data]]
+    [[clean-output-stager<regression_type>]]
+    [[clean-transfer-data<regression_type>]]

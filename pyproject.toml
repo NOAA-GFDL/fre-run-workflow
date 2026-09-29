@@ -1,0 +1,16 @@
+# <workflow-src>/pyproject.toml
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plugin_test"
+version = "0.1.0"
+
+[project.entry-points."cylc.pre_configure"]
+my_plugin = "read_yaml:pre_configure"
+
+[tool.setuptools]
+# This tells Python where to find your code
+package-dir = {"" = "lib/python/plugin"}
+py-modules = ["read_yaml"]

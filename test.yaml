@@ -1,0 +1,46 @@
+run:
+  workflow:
+    repository: ah.git
+    version: main
+  settings:
+    site: gaea
+  switches:
+    clean_work: true
+  input:
+    namelist:
+    datasets:
+  runtime_mode:
+    production:
+      simtime: $(EXP_AMIP_LEN)
+      simtime_units: years
+      segment_simtime: '12'
+      segment_simtime_units: months
+      layouts: '{{ layouts.c96L65_production}}'
+    regression:
+      basic:
+        layouts: '{{ layouts.c96L65_8day}}'
+      reprorts:
+        layouts:
+        - '{{ layouts.c96L65_8day}}'
+        - '{{ layouts.c96L65_4x4day_v2}}'
+      prodrts:
+        layouts:
+        - '{{ layouts.c96L65_8day}}'
+        - '{{ layouts.c96L65_4x4day}}'
+      debugrts:
+        layouts:
+        - '{{ layouts.c96L65_2day}}'
+        - '{{ layouts.c96L65_1x1day}}'
+      timing:
+        layouts:
+        - '{{ layouts.c96_192x2a_timing}}'
+        - '{{ layouts.c96_384x1a_timing}}'
+        - '{{ layouts.c96_384x2a_timing}}'
+        - '{{ layouts.c96_768x1a_timing}}'
+        - '{{ layouts.c96_576x2a_timing}}'
+        - '{{ layouts.c96_1152x1a_timing}}'
+        - '{{ layouts.c96_1536x1a_timing}}'
+        - '{{ layouts.c96_2304x1a_timing}}'
+        - '{{ layouts.c96_1536x2a_timing}}'
+      year:
+        layouts: '{{ layouts.c96L65_12months}}'
