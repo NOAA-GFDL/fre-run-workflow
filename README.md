@@ -28,9 +28,12 @@ cylc validate run-wf-test
 ## Developer Overview and Instructions (to be updated)
 
 ### `Cylc` Configuration
-For an overview on cylc configurations, see [here](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-configuration-)
+For an overview on global cylc configurations and how to override them for your own testing, see [here](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-configuration-)
 
 ### Cylc Platforms
-### Cylc Workflows
+Cylc platforms are defined differently than GFDL/RDHPCS platforms. In `cylc`, the platforms most notably include the `host` name, `job runner`, and `install` target, where cylc can install job files. These platforms are set for any workflow to use in the global.cylc configuration file.
+
+To view configured platforms available: `cylc config --platform-names`
+To view platform configurations: `cylc config --platforms`
 
 ## Contributing Guidelines (to be added)
