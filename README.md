@@ -3,12 +3,22 @@ The `fre-run-workflow` repository holds GFDL's next-generation FRE (FMS Runtime 
 
 This workflow template utilizes Cylc, a general purpose workflow engine that is very efficient for cyclic systems.For more information, see [cylc's user guide here](https://cylc.github.io/cylc-doc/stable/html/user-guide/index.html).
 
-## Model Running Instructions (to be updated/developed)
+## Model Run Workflow (to be updated)
 
-### Setup
-### Guide/more info
+The `flow.cylc` workflow definition file details how a model in run at GFDL. Breaking down it's components, the file has 4 main sections:
 
-## Quickstart (to be updated/developed)
+- `[meta]`: Defines metadata for the workflow such as "title", "description, and "url"
+- `[scheduler]`: Defines settings for the scheduler
+- `[scheduling]`: Defines the task graph that determines when each task should run and if they are dependent on another 
+- `[runtime]`: Defines task scripts, environment variables, and tools to be run
+
+This runtime workflow will follow the process of setting up a working directory, running the model executable or container, configuring restart files, and staging the output to get ready for transfers. If wanted, the workflow will also have the ability to transfer model output from Gaea to PPAN and run FRE Canopy post-processing. 
+
+For GFDL production models, the runtime workflow will cycle over a `BATCH_CYCLE` recurrence interval. This variable will be determined by the `production wallclock` and `production segment runtime` set in the YAML configurations. 
+
+For GFDL regression models, the workflow tasks will run once for different regression types. Examples can include, but are not limited to, `basic`, `debugrts`, and `timing`.
+
+## Model Running Quickstart (to be updated/developed)
 
 If on Gaea, follow the instructions below: 
 
@@ -26,14 +36,15 @@ cylc validate run-wf-test
 ```
 
 ## Developer Overview and Instructions (to be updated)
+### Cylc Tips and Tricks
+- `Cylc` Configuration: [overview of global.cylc](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-configuration-)
+- `Cylc` platforms:
+    - the platforms most notably include the `host` name, `job runner`, and `install` target, where cylc can install job files
+    - platforms are set for any workflow to use in the global.cylc configuration file.
+    - To view configured platforms available: `cylc config --platform-names`
+    - To view platform configurations: `cylc config --platforms`
+- `Cylc` workflow monitoring: [GUI, TUI, CLI tips](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-workflow-monitoring-)
 
-### `Cylc` Configuration
-For an overview on global cylc configurations and how to override them for your own testing, see [here](https://github.com/NOAA-GFDL/fre-postprocess-workflow/blob/main/for-developers.md#cylc-configuration-)
-
-### Cylc Platforms
-Cylc platforms are defined differently than GFDL/RDHPCS platforms. In `cylc`, the platforms most notably include the `host` name, `job runner`, and `install` target, where cylc can install job files. These platforms are set for any workflow to use in the global.cylc configuration file.
-
-To view configured platforms available: `cylc config --platform-names`
-To view platform configurations: `cylc config --platforms`
+### Running and testing workflows (more in depth for developer; to be added)
 
 ## Contributing Guidelines (to be added)
