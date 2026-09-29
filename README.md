@@ -5,7 +5,6 @@ This workflow template utilizes Cylc, a general purpose workflow engine that is 
 
 ## Model Running Instructions (to be updated/developed)
 
-(to be added/developed)
 ### Setup
 ### Guide/more info
 
